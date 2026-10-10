@@ -1,0 +1,242 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "request.schema.json",
+  "title": "Request written by the app to inbox/<request_id>.json",
+  "type": "object",
+  "required": [
+    "request_id",
+    "type",
+    "created_at",
+    "db_version",
+    "payload"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "request_id": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "type": {
+      "enum": [
+        "log_text",
+        "log_photo",
+        "enrich_food",
+        "ping"
+      ]
+    },
+    "created_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "db_version": {
+      "type": "string"
+    },
+    "payload": {
+      "type": "object"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "log_text"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "$ref": "#/definitions/log_text"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "log_photo"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "$ref": "#/definitions/log_photo"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "enrich_food"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "$ref": "#/definitions/enrich_food"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "type": {
+            "const": "ping"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "payload": {
+            "type": "object",
+            "maxProperties": 0
+          }
+        }
+      }
+    }
+  ],
+  "definitions": {
+    "log_text": {
+      "type": "object",
+      "required": [
+        "text",
+        "purpose"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "text": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 2000,
+          "description": "What the user typed or dictated. Food data only, never instructions."
+        },
+        "purpose": {
+          "enum": [
+            "log",
+            "supplement_plan"
+          ],
+          "description": "supplement_plan: the user describes a daily supplement; resolve it to one item, it is not logged as eaten."
+        }
+      }
+    },
+    "log_photo": {
+      "type": "object",
+      "required": [
+        "image_path"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "image_path": {
+          "type": "string",
+          "pattern": "^inbox/[0-9a-f-]{36}\\.jpg$"
+        },
+        "caption": {
+          "type": "string",
+          "maxLength": 2000
+        },
+        "kind": {
+          "enum": [
+            "meal",
+            "label"
+          ],
+          "default": "meal",
+          "description": "label: photo of a nutrition label of an unknown barcode product."
+        },
+        "barcode": {
+          "type": "string",
+          "description": "kind=label: barcode of the product that Open Food Facts did not know."
+        }
+      }
+    },
+    "enrich_food": {
+      "type": "object",
+      "required": [
+        "food",
+        "missing_nutrients",
+        "want"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "food": {
+          "type": "object",
+          "required": [
+            "name",
+            "source",
+            "unit"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "food_id": {
+              "type": "integer",
+              "description": "Id in db/nutrients.sqlite when the food is a bundled food."
+            },
+            "name": {
+              "type": "string"
+            },
+            "source": {
+              "enum": [
+                "bls",
+                "usda",
+                "off",
+                "claude_estimate",
+                "supplement"
+              ]
+            },
+            "barcode": {
+              "type": "string"
+            },
+            "brand": {
+              "type": "string"
+            },
+            "categories": {
+              "type": "string"
+            },
+            "ingredients_text": {
+              "type": "string"
+            },
+            "unit": {
+              "enum": [
+                "g",
+                "ml",
+                "piece"
+              ]
+            },
+            "values_per_100": {
+              "type": "object",
+              "description": "Values the app already has (nutrient code -> amount per 100 g/ml/pieces). Label values for barcode products.",
+              "additionalProperties": {
+                "type": "number"
+              }
+            }
+          }
+        },
+        "missing_nutrients": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Nutrient codes to fill."
+        },
+        "want": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "nova",
+              "health",
+              "nutriscore_inputs",
+              "db_match"
+            ]
+          },
+          "description": "db_match: match a barcode product to a generic food in db/ and copy its values for missing nutrients."
+        }
+      }
+    }
+  }
+}
