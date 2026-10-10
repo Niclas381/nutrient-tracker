@@ -48,3 +48,7 @@ app.*.map.json
 /tool/raw/
 /tool/.venv/
 __pycache__/
+
+# Signing keys never go into the repo
+*.jks
+*.keystore
